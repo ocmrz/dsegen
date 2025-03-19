@@ -7,7 +7,7 @@ name = "dsegen"
 version = "0.1.0"
 description = "DSE Generator - Generate DSE practice papers with AI"
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 dependencies = [
     "jinja2>=3.1.6",
     "markdown>=3.7",
