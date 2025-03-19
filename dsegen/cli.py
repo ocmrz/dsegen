@@ -1,13 +1,16 @@
 import os
+import os
+import sys
+import asyncio
 from pathlib import Path
 from typing import TypeAlias, Iterable
-import asyncio
+from functools import reduce
+import importlib.resources
+
 import markdown
 import jinja2
 from openai import OpenAI
 from openai.types.chat import ChatCompletionMessageParam
-from functools import reduce
-import sys
 from playwright.async_api import async_playwright
 
 Markdown: TypeAlias = str
@@ -17,12 +20,16 @@ client = OpenAI(api_key=os.getenv("OPENROUTER_API_KEY"), base_url="https://openr
 
 
 def prompt(topic: str) -> Iterable[ChatCompletionMessageParam]:
+    prompt_md = importlib.resources.files('dsegen.data').joinpath('prompt.md').read_text()
+    unmanned_store = importlib.resources.files('dsegen.data.examples').joinpath('unmanned-store.md').read_text()
+    night_owls = importlib.resources.files('dsegen.data.examples').joinpath('night-owls.md').read_text()
+    
     return [
-        {"role": "system", "content": Path("prompt.md").read_text()},
+        {"role": "system", "content": prompt_md},
         {"role": "user", "content": "Topic: Japan culture Convenience stores"},
-        {"role": "assistant", "content": Path("examples/unmanned-store.md").read_text()},
+        {"role": "assistant", "content": unmanned_store},
         {"role": "user", "content": "Topic: Health Sleep patterns"},
-        {"role": "assistant", "content": Path("examples/night-owls.md").read_text()},
+        {"role": "assistant", "content": night_owls},
         {"role": "user", "content": f"Topic: {topic}"},
     ]
 
@@ -36,7 +43,8 @@ def generate_markdown(topic: str) -> Markdown:
 
 def render_document(markdown_content: Markdown) -> HTML:
     converted_html = markdown.markdown(markdown_content, extensions=["extra"])
-    template = jinja2.Template(Path("templates/template.html").read_text())
+    template_content = importlib.resources.files('dsegen.data.templates').joinpath('template.html').read_text()
+    template = jinja2.Template(template_content)
     final_html_document = template.render(content=converted_html)
     return final_html_document
 

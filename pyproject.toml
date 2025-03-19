@@ -22,5 +22,12 @@ dsegen = "dsegen.cli:main"
 [tool.setuptools]
 packages = ["dsegen"]
 
+[tool.setuptools.package-data]
+dsegen = [
+    "data/*.md",
+    "data/examples/*.md",
+    "data/templates/*.html"
+]
+
 [tool.black]
 line-length = 100
