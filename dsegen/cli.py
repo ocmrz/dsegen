@@ -1,6 +1,7 @@
 import os
 import sys
 import asyncio
+import base64
 import keyring
 from pathlib import Path
 from typing import TypeAlias, Iterable
@@ -48,11 +49,20 @@ def generate_markdown(topic: str) -> Markdown:
 
 def render_document(markdown_content: Markdown) -> HTML:
     converted_html = markdown.markdown(markdown_content, extensions=["extra"])
+
     template_content = (
         importlib.resources.files("dsegen.data.templates").joinpath("template.html").read_text()
     )
+
+    watermark_path = importlib.resources.files("dsegen.data.templates").joinpath("watermark.png")
+    with open(watermark_path, "rb") as img_file:
+        img_data = base64.b64encode(img_file.read()).decode("utf-8")
+
+    watermark_data_url = f"data:image/png;base64,{img_data}"
+
     template = jinja2.Template(template_content)
-    final_html_document = template.render(content=converted_html)
+    final_html_document = template.render(content=converted_html, watermark_data=watermark_data_url)
+
     return final_html_document
 
 
@@ -74,13 +84,13 @@ def pipe(data, *functions):
 def configure_api():
     api_key = input("Enter your OpenRouter API key: ")
     default_model = input("Enter your default model: ")
-    
+
     keyring.set_password("dsegen", "openrouter_api_key", api_key)
     keyring.set_password("dsegen", "openrouter_default_model", default_model)
 
     os.environ["OPENROUTER_API_KEY"] = api_key
     os.environ["OPENROUTER_DEFAULT_MODEL"] = default_model
-    
+
     print("API credentials securely stored in system keyring")
 
 
@@ -154,7 +164,7 @@ def load_config():
     """Load configuration from the system keyring"""
     api_key = keyring.get_password("dsegen", "openrouter_api_key")
     default_model = keyring.get_password("dsegen", "openrouter_default_model")
-    
+
     if api_key and default_model:
         os.environ["OPENROUTER_API_KEY"] = api_key
         os.environ["OPENROUTER_DEFAULT_MODEL"] = default_model
@@ -179,7 +189,7 @@ def main():
             if not load_config():
                 print("API key not configured. Run 'dsegen config' first.")
                 sys.exit(1)
-                
+
         client = OpenAI(
             api_key=os.getenv("OPENROUTER_API_KEY"), base_url="https://openrouter.ai/api/v1"
         )
