@@ -4,7 +4,7 @@ import asyncio
 import base64
 import keyring
 from pathlib import Path
-from typing import TypeAlias, Iterable
+from typing import Iterable
 from functools import reduce
 import importlib.resources
 
@@ -14,8 +14,8 @@ from openai import OpenAI
 from openai.types.chat import ChatCompletionMessageParam
 from playwright.async_api import async_playwright
 
-Markdown: TypeAlias = str
-HTML: TypeAlias = str
+Markdown = str
+HTML = str
 
 client = None
 
