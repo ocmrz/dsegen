@@ -27,7 +27,8 @@ packages = ["dsegen"]
 dsegen = [
     "data/*.md",
     "data/examples/*.md",
-    "data/templates/*.html"
+    "data/templates/*.html",
+    "data/templates/*.png"
 ]
 
 [tool.black]
