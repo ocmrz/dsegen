@@ -16,14 +16,18 @@ from playwright.async_api import async_playwright
 Markdown: TypeAlias = str
 HTML: TypeAlias = str
 
-client = OpenAI(api_key=os.getenv("OPENROUTER_API_KEY"), base_url="https://openrouter.ai/api/v1")
+client = None
 
 
 def prompt(topic: str) -> Iterable[ChatCompletionMessageParam]:
-    prompt_md = importlib.resources.files('dsegen.data').joinpath('prompt.md').read_text()
-    unmanned_store = importlib.resources.files('dsegen.data.examples').joinpath('unmanned-store.md').read_text()
-    night_owls = importlib.resources.files('dsegen.data.examples').joinpath('night-owls.md').read_text()
-    
+    prompt_md = importlib.resources.files("dsegen.data").joinpath("prompt.md").read_text()
+    unmanned_store = (
+        importlib.resources.files("dsegen.data.examples").joinpath("unmanned-store.md").read_text()
+    )
+    night_owls = (
+        importlib.resources.files("dsegen.data.examples").joinpath("night-owls.md").read_text()
+    )
+
     return [
         {"role": "system", "content": prompt_md},
         {"role": "user", "content": "Topic: Japan culture Convenience stores"},
@@ -35,6 +39,7 @@ def prompt(topic: str) -> Iterable[ChatCompletionMessageParam]:
 
 
 def generate_markdown(topic: str) -> Markdown:
+    global client
     response = client.chat.completions.create(
         model=os.getenv("OPENROUTER_DEFAULT_MODEL"), messages=prompt(topic)
     )
@@ -43,7 +48,9 @@ def generate_markdown(topic: str) -> Markdown:
 
 def render_document(markdown_content: Markdown) -> HTML:
     converted_html = markdown.markdown(markdown_content, extensions=["extra"])
-    template_content = importlib.resources.files('dsegen.data.templates').joinpath('template.html').read_text()
+    template_content = (
+        importlib.resources.files("dsegen.data.templates").joinpath("template.html").read_text()
+    )
     template = jinja2.Template(template_content)
     final_html_document = template.render(content=converted_html)
     return final_html_document
@@ -67,14 +74,14 @@ def pipe(data, *functions):
 def configure_api():
     api_key = input("Enter your OpenRouter API key: ")
     default_model = input("Enter your default model: ")
-    
+
     with open(".env", "w") as f:
         f.write(f"OPENROUTER_API_KEY={api_key}\n")
         f.write(f"OPENROUTER_DEFAULT_MODEL={default_model}\n")
-    
+
     os.environ["OPENROUTER_API_KEY"] = api_key
     os.environ["OPENROUTER_DEFAULT_MODEL"] = default_model
-    
+
     print("Configuration updated")
 
 
@@ -83,22 +90,22 @@ def process_markdown_file(input_file, output_file):
     if not os.path.exists(input_file):
         print(f"Error: Input file '{input_file}' not found")
         sys.exit(1)
-        
-    if not output_file.lower().endswith(('.pdf', '.md', '.html')):
+
+    if not output_file.lower().endswith((".pdf", ".md", ".html")):
         print(f"Unsupported output format: {Path(output_file).suffix}")
         sys.exit(1)
 
     try:
         markdown_content = Path(input_file).read_text()
         html_content = render_document(markdown_content)
-        
+
         if output_file.lower().endswith(".pdf"):
             asyncio.run(html_to_pdf(html_content, output_file))
         elif output_file.lower().endswith(".md"):
             Path(output_file).write_text(markdown_content)
         elif output_file.lower().endswith(".html"):
             Path(output_file).write_text(html_content)
-            
+
         print(f"Markdown file processed and saved to {output_file}")
     except Exception as e:
         print(f"Error processing markdown file: {e}")
@@ -106,14 +113,14 @@ def process_markdown_file(input_file, output_file):
 
 
 def generate_english_paper(topic, output_file):
-    if os.path.exists(topic) and topic.lower().endswith('.md'):
+    if os.path.exists(topic) and topic.lower().endswith(".md"):
         return process_markdown_file(topic, output_file)
-        
+
     if not os.getenv("OPENROUTER_API_KEY") or not os.getenv("OPENROUTER_DEFAULT_MODEL"):
         print("API key or default model not set. Run 'dsegen config' first.")
         sys.exit(1)
 
-    if not output_file.lower().endswith(('.pdf', '.md', '.html')):
+    if not output_file.lower().endswith((".pdf", ".md", ".html")):
         print(f"Unsupported output format: {Path(output_file).suffix}")
         sys.exit(1)
 
@@ -146,16 +153,22 @@ def show_help():
 
 
 def main():
+    global client
+
     if len(sys.argv) < 2:
         show_help()
         sys.exit(1)
-    
+
     subcommand = sys.argv[1].lower()
-    
+
     if subcommand == "config":
         configure_api()
         sys.exit(0)
     elif subcommand in ("english-speaking", "es"):
+        client = OpenAI(
+            api_key=os.getenv("OPENROUTER_API_KEY"), base_url="https://openrouter.ai/api/v1"
+        )
+
         if len(sys.argv) < 4:
             print("Usage: dsegen english-speaking <topic or file.md> <output_file>")
             sys.exit(1)
@@ -168,6 +181,7 @@ def main():
         print(f"Unknown subcommand: {subcommand}")
         show_help()
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()
