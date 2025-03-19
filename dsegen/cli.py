@@ -56,16 +56,25 @@ def pipe(data, *functions):
     return reduce(lambda value, func: func(value), functions, data)
 
 
-if __name__ == "__main__":
-    if len(sys.argv) < 3:
-        print("Usage: python main.py <topic> <output_file>")
+def configure_api():
+    api_key = input("Enter your OpenRouter API key: ")
+    default_model = input("Enter your default model: ")
+    
+    with open(".env", "w") as f:
+        f.write(f"OPENROUTER_API_KEY={api_key}\n")
+        f.write(f"OPENROUTER_DEFAULT_MODEL={default_model}\n")
+    
+    os.environ["OPENROUTER_API_KEY"] = api_key
+    os.environ["OPENROUTER_DEFAULT_MODEL"] = default_model
+    
+    print("Configuration updated")
+
+
+def generate_english_paper(topic, output_file):
+    """Generate an English DSE speaking practice paper."""
+    if not os.getenv("OPENROUTER_API_KEY") or not os.getenv("OPENROUTER_DEFAULT_MODEL"):
+        print("API key or default model not set. Run 'dsegen config' first.")
         sys.exit(1)
-
-    assert os.getenv("OPENROUTER_API_KEY") is not None, "OPENROUTER_API_KEY is not set"
-    assert os.getenv("OPENROUTER_DEFAULT_MODEL") is not None, "OPENROUTER_DEFAULT_MODEL is not set"
-
-    topic = sys.argv[1]
-    output_file = sys.argv[2]
 
     if not output_file.lower().endswith(('.pdf', '.md', '.html')):
         print(f"Unsupported output format: {Path(output_file).suffix}")
@@ -81,4 +90,45 @@ if __name__ == "__main__":
     elif output_file.lower().endswith(".html"):
         Path(output_file).write_text(html_content)
 
-    print(f"Paper on '{topic}' generated and saved to {output_file}")
+    print(f"English speaking paper on '{topic}' generated and saved to {output_file}")
+
+
+def show_help():
+    """Show help message for the CLI."""
+    print("DSE Generator (dsegen) - Generate DSE practice papers")
+    print("\nUsage:")
+    print("  dsegen config               Configure API keys and default model")
+    print("  dsegen english-speaking TOPIC FILE   Generate an English speaking paper")
+    print("\nAliases:")
+    print("  english-speaking: es")
+    print("\nOptions:")
+    print("  TOPIC                       The topic for the speaking paper")
+    print("  FILE                        Output file path (.pdf, .md, or .html)")
+
+
+def main():
+    if len(sys.argv) < 2:
+        show_help()
+        sys.exit(1)
+    
+    subcommand = sys.argv[1].lower()
+    
+    if subcommand == "config":
+        configure_api()
+        sys.exit(0)
+    elif subcommand in ("english-speaking", "es"):
+        if len(sys.argv) < 4:
+            print("Usage: dsegen english-speaking <topic> <output_file>")
+            sys.exit(1)
+        topic = sys.argv[2]
+        output_file = sys.argv[3]
+        generate_english_paper(topic, output_file)
+    elif subcommand in ("-h", "--help", "help"):
+        show_help()
+    else:
+        print(f"Unknown subcommand: {subcommand}")
+        show_help()
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()
