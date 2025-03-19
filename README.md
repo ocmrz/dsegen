@@ -31,7 +31,17 @@ cd dsegen
 uv pip install -e .
 ```
 
-## Setup with OpenRouter
+## Setup
+
+### Install Playwright Browsers
+
+Dsegen uses Playwright for PDF generation. After installation, you need to install the required browser binaries:
+
+```bash
+python -m playwright install chromium
+```
+
+### Configure OpenRouter API
 
 1. **Create an OpenRouter Account**
    - Sign up at [OpenRouter](https://openrouter.ai/)
@@ -78,6 +88,7 @@ dsegen --help
 
 ## Requirements
 
-- Python 3.8 or higher
+- Python 3.10 or higher
 - Internet connection for API calls (when generating papers from topics)
 - OpenRouter API key
+- Chromium browser (installed via Playwright)
