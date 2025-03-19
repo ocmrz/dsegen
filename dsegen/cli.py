@@ -1,7 +1,7 @@
 import os
-import os
 import sys
 import asyncio
+import keyring
 from pathlib import Path
 from typing import TypeAlias, Iterable
 from functools import reduce
@@ -74,19 +74,17 @@ def pipe(data, *functions):
 def configure_api():
     api_key = input("Enter your OpenRouter API key: ")
     default_model = input("Enter your default model: ")
-
-    with open(".env", "w") as f:
-        f.write(f"OPENROUTER_API_KEY={api_key}\n")
-        f.write(f"OPENROUTER_DEFAULT_MODEL={default_model}\n")
+    
+    keyring.set_password("dsegen", "openrouter_api_key", api_key)
+    keyring.set_password("dsegen", "openrouter_default_model", default_model)
 
     os.environ["OPENROUTER_API_KEY"] = api_key
     os.environ["OPENROUTER_DEFAULT_MODEL"] = default_model
-
-    print("Configuration updated")
+    
+    print("API credentials securely stored in system keyring")
 
 
 def process_markdown_file(input_file, output_file):
-    """Process an existing Markdown file and convert it to the requested format."""
     if not os.path.exists(input_file):
         print(f"Error: Input file '{input_file}' not found")
         sys.exit(1)
@@ -152,6 +150,18 @@ def show_help():
     print("  FILE                        Output file path (.pdf, .md, or .html)")
 
 
+def load_config():
+    """Load configuration from the system keyring"""
+    api_key = keyring.get_password("dsegen", "openrouter_api_key")
+    default_model = keyring.get_password("dsegen", "openrouter_default_model")
+    
+    if api_key and default_model:
+        os.environ["OPENROUTER_API_KEY"] = api_key
+        os.environ["OPENROUTER_DEFAULT_MODEL"] = default_model
+        return True
+    return False
+
+
 def main():
     global client
 
@@ -165,6 +175,11 @@ def main():
         configure_api()
         sys.exit(0)
     elif subcommand in ("english-speaking", "es"):
+        if not os.getenv("OPENROUTER_API_KEY") or not os.getenv("OPENROUTER_DEFAULT_MODEL"):
+            if not load_config():
+                print("API key not configured. Run 'dsegen config' first.")
+                sys.exit(1)
+                
         client = OpenAI(
             api_key=os.getenv("OPENROUTER_API_KEY"), base_url="https://openrouter.ai/api/v1"
         )
