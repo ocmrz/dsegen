@@ -67,11 +67,18 @@ if __name__ == "__main__":
     topic = sys.argv[1]
     output_file = sys.argv[2]
 
-    result = pipe(topic, generate_markdown, render_document)
+    if not output_file.lower().endswith(('.pdf', '.md', '.html')):
+        print(f"Unsupported output format: {Path(output_file).suffix}")
+        sys.exit(1)
+
+    markdown_content = generate_markdown(topic)
+    html_content = render_document(markdown_content)
 
     if output_file.lower().endswith(".pdf"):
-        asyncio.run(html_to_pdf(result, output_file))
-    else:
-        Path(output_file).write_text(result)
+        asyncio.run(html_to_pdf(html_content, output_file))
+    elif output_file.lower().endswith(".md"):
+        Path(output_file).write_text(markdown_content)
+    elif output_file.lower().endswith(".html"):
+        Path(output_file).write_text(html_content)
 
     print(f"Paper on '{topic}' generated and saved to {output_file}")
