@@ -10,6 +10,7 @@ import importlib.resources
 
 import markdown
 import jinja2
+import openai
 from openai import OpenAI
 from openai.types.chat import ChatCompletionMessageParam
 from playwright.async_api import async_playwright
@@ -41,11 +42,20 @@ def prompt(topic: str) -> Iterable[ChatCompletionMessageParam]:
 
 def generate_markdown(topic: str) -> Markdown:
     global client
-    response = client.chat.completions.create(
-        model=os.getenv("OPENROUTER_DEFAULT_MODEL"), messages=prompt(topic)
-    )
-    return response.choices[0].message.content
-
+    try:
+        response = client.chat.completions.create(
+            model=os.getenv("OPENROUTER_DEFAULT_MODEL"), messages=prompt(topic)
+        )
+        return response.choices[0].message.content
+    except openai.APIConnectionError as e:
+        print(f"Failed to connect to OpenRouter API: {e}")
+        exit(1)
+    except openai.RateLimitError as e:
+        print(f"OpenRouter API request exceeded rate limit: {e}")
+        exit(1)
+    except openai.APIError as e:
+        print(f"OpenRouter API returned an API Error: {e}")
+        exit(1)
 
 def render_document(markdown_content: Markdown) -> HTML:
     converted_html = markdown.markdown(markdown_content, extensions=["extra"])
