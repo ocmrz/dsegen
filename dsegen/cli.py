@@ -78,8 +78,37 @@ def configure_api():
     print("Configuration updated")
 
 
+def process_markdown_file(input_file, output_file):
+    """Process an existing Markdown file and convert it to the requested format."""
+    if not os.path.exists(input_file):
+        print(f"Error: Input file '{input_file}' not found")
+        sys.exit(1)
+        
+    if not output_file.lower().endswith(('.pdf', '.md', '.html')):
+        print(f"Unsupported output format: {Path(output_file).suffix}")
+        sys.exit(1)
+
+    try:
+        markdown_content = Path(input_file).read_text()
+        html_content = render_document(markdown_content)
+        
+        if output_file.lower().endswith(".pdf"):
+            asyncio.run(html_to_pdf(html_content, output_file))
+        elif output_file.lower().endswith(".md"):
+            Path(output_file).write_text(markdown_content)
+        elif output_file.lower().endswith(".html"):
+            Path(output_file).write_text(html_content)
+            
+        print(f"Markdown file processed and saved to {output_file}")
+    except Exception as e:
+        print(f"Error processing markdown file: {e}")
+        sys.exit(1)
+
+
 def generate_english_paper(topic, output_file):
-    """Generate an English DSE speaking practice paper."""
+    if os.path.exists(topic) and topic.lower().endswith('.md'):
+        return process_markdown_file(topic, output_file)
+        
     if not os.getenv("OPENROUTER_API_KEY") or not os.getenv("OPENROUTER_DEFAULT_MODEL"):
         print("API key or default model not set. Run 'dsegen config' first.")
         sys.exit(1)
@@ -107,10 +136,12 @@ def show_help():
     print("\nUsage:")
     print("  dsegen config               Configure API keys and default model")
     print("  dsegen english-speaking TOPIC FILE   Generate an English speaking paper")
+    print("  dsegen english-speaking FILE.md FILE   Process existing markdown file")
     print("\nAliases:")
     print("  english-speaking: es")
     print("\nOptions:")
     print("  TOPIC                       The topic for the speaking paper")
+    print("  FILE.md                     An existing markdown file to process")
     print("  FILE                        Output file path (.pdf, .md, or .html)")
 
 
@@ -126,11 +157,11 @@ def main():
         sys.exit(0)
     elif subcommand in ("english-speaking", "es"):
         if len(sys.argv) < 4:
-            print("Usage: dsegen english-speaking <topic> <output_file>")
+            print("Usage: dsegen english-speaking <topic or file.md> <output_file>")
             sys.exit(1)
-        topic = sys.argv[2]
+        topic_or_file = sys.argv[2]
         output_file = sys.argv[3]
-        generate_english_paper(topic, output_file)
+        generate_english_paper(topic_or_file, output_file)
     elif subcommand in ("-h", "--help", "help"):
         show_help()
     else:
