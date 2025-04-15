@@ -14,7 +14,15 @@ dependencies = [
     "openai>=1.66.2",
     "playwright>=1.41.2",
     "python-dotenv>=1.0.0",
-    "keyring>=24.0.0"
+    "keyring>=24.0.0",
+]
+
+[project.optional-dependencies]
+cli = [
+]
+server = [
+    "fastapi>=0.115.12",
+    "uvicorn>=0.23.0",
 ]
 
 [project.scripts]

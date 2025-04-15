@@ -1,94 +1,9 @@
 import os
 import sys
-import asyncio
-import base64
+
 import keyring
-from pathlib import Path
-from typing import Iterable
-from functools import reduce
-import importlib.resources
 
-import markdown
-import jinja2
-import openai
-from openai import OpenAI
-from openai.types.chat import ChatCompletionMessageParam
-from playwright.async_api import async_playwright
-
-Markdown = str
-HTML = str
-
-client = None
-
-
-def prompt(topic: str) -> Iterable[ChatCompletionMessageParam]:
-    prompt_md = importlib.resources.files("dsegen.data").joinpath("prompt.md").read_text()
-    unmanned_store = (
-        importlib.resources.files("dsegen.data.examples").joinpath("unmanned-store.md").read_text()
-    )
-    night_owls = (
-        importlib.resources.files("dsegen.data.examples").joinpath("night-owls.md").read_text()
-    )
-
-    return [
-        {"role": "system", "content": prompt_md},
-        {"role": "user", "content": "Topic: Japan culture Convenience stores"},
-        {"role": "assistant", "content": unmanned_store},
-        {"role": "user", "content": "Topic: Health Sleep patterns"},
-        {"role": "assistant", "content": night_owls},
-        {"role": "user", "content": f"Topic: {topic}"},
-    ]
-
-
-def generate_markdown(topic: str) -> Markdown:
-    global client
-    try:
-        response = client.chat.completions.create(
-            model=os.getenv("OPENROUTER_DEFAULT_MODEL"), messages=prompt(topic)
-        )
-        return response.choices[0].message.content
-    except openai.APIConnectionError as e:
-        print(f"Failed to connect to OpenRouter API: {e}")
-        exit(1)
-    except openai.RateLimitError as e:
-        print(f"OpenRouter API request exceeded rate limit: {e}")
-        exit(1)
-    except openai.APIError as e:
-        print(f"OpenRouter API returned an API Error: {e}")
-        exit(1)
-
-def render_document(markdown_content: Markdown) -> HTML:
-    converted_html = markdown.markdown(markdown_content, extensions=["extra"])
-
-    template_content = (
-        importlib.resources.files("dsegen.data.templates").joinpath("template.html").read_text()
-    )
-
-    watermark_path = importlib.resources.files("dsegen.data.templates").joinpath("watermark.png")
-    with open(watermark_path, "rb") as img_file:
-        img_data = base64.b64encode(img_file.read()).decode("utf-8")
-
-    watermark_data_url = f"data:image/png;base64,{img_data}"
-
-    template = jinja2.Template(template_content)
-    final_html_document = template.render(content=converted_html, watermark_data=watermark_data_url)
-
-    return final_html_document
-
-
-async def html_to_pdf(html_content: str, output_file: str) -> None:
-    async with async_playwright() as p:
-        browser = await p.chromium.launch()
-        page = await browser.new_page()
-        await page.set_content(html_content)
-        await page.pdf(
-            path=output_file, format="A4", width="210mm", height="297mm", print_background=True
-        )
-        await browser.close()
-
-
-def pipe(data, *functions):
-    return reduce(lambda value, func: func(value), functions, data)
+from dsegen.core import generate_english_paper
 
 
 def configure_api():
@@ -102,57 +17,6 @@ def configure_api():
     os.environ["OPENROUTER_DEFAULT_MODEL"] = default_model
 
     print("API credentials securely stored in system keyring")
-
-
-def process_markdown_file(input_file, output_file):
-    if not os.path.exists(input_file):
-        print(f"Error: Input file '{input_file}' not found")
-        sys.exit(1)
-
-    if not output_file.lower().endswith((".pdf", ".md", ".html")):
-        print(f"Unsupported output format: {Path(output_file).suffix}")
-        sys.exit(1)
-
-    try:
-        markdown_content = Path(input_file).read_text()
-        html_content = render_document(markdown_content)
-
-        if output_file.lower().endswith(".pdf"):
-            asyncio.run(html_to_pdf(html_content, output_file))
-        elif output_file.lower().endswith(".md"):
-            Path(output_file).write_text(markdown_content)
-        elif output_file.lower().endswith(".html"):
-            Path(output_file).write_text(html_content)
-
-        print(f"Markdown file processed and saved to {output_file}")
-    except Exception as e:
-        print(f"Error processing markdown file: {e}")
-        sys.exit(1)
-
-
-def generate_english_paper(topic, output_file):
-    if os.path.exists(topic) and topic.lower().endswith(".md"):
-        return process_markdown_file(topic, output_file)
-
-    if not os.getenv("OPENROUTER_API_KEY") or not os.getenv("OPENROUTER_DEFAULT_MODEL"):
-        print("API key or default model not set. Run 'dsegen config' first.")
-        sys.exit(1)
-
-    if not output_file.lower().endswith((".pdf", ".md", ".html")):
-        print(f"Unsupported output format: {Path(output_file).suffix}")
-        sys.exit(1)
-
-    markdown_content = generate_markdown(topic)
-    html_content = render_document(markdown_content)
-
-    if output_file.lower().endswith(".pdf"):
-        asyncio.run(html_to_pdf(html_content, output_file))
-    elif output_file.lower().endswith(".md"):
-        Path(output_file).write_text(markdown_content)
-    elif output_file.lower().endswith(".html"):
-        Path(output_file).write_text(html_content)
-
-    print(f"English speaking paper on '{topic}' generated and saved to {output_file}")
 
 
 def show_help():
@@ -183,7 +47,6 @@ def load_config():
 
 
 def main():
-    global client
 
     if len(sys.argv) < 2:
         show_help()
@@ -199,11 +62,6 @@ def main():
             if not load_config():
                 print("API key not configured. Run 'dsegen config' first.")
                 sys.exit(1)
-
-        client = OpenAI(
-            api_key=os.getenv("OPENROUTER_API_KEY"), base_url="https://openrouter.ai/api/v1"
-        )
-
         if len(sys.argv) < 4:
             print("Usage: dsegen english-speaking <topic or file.md> <output_file>")
             sys.exit(1)
